@@ -1,0 +1,124 @@
+// @version=5
+indicator("Gold Master Bot - M12 to M15 | OP^L CP | LqS Chain | Large/Small", overlay=true, max_boxes_count=500, max_labels_count=500)
+
+// ===== SETTINGS =====
+accountMode = input.string("SMALL", "Account Mode", options=["LARGE", "SMALL"], tooltip="LARGE = H4 Entry 22$ SL | SMALL = M15 Entry 5.5$ SL")
+show12M_OP = input.bool(true, "Show 12M OP^L")
+showDailyChain = input.bool(true, "Show Daily LqS Chain (2nd OP^L)")
+riskBuffer = input.float(2.0, "SL Buffer $", step=0.5)
+
+// ===== 1. HTF - M12 OP^L (Your 4300 level) =====
+op_l_12M = request.security(syminfo.tickerid, "12M", open)
+isLqS_12M = request.security(syminfo.tickerid, "12M", high > high[1] and close < close[1])
+
+plot(show12M_OP ? op_l_12M : na, "12M OP^L (Major Resistance)", color=color.new(color.red, 0), style=plot.style_linebr, linewidth=2)
+
+// ===== 2. M1 OP^L CP - Your base 4160 =====
+op_l_M1 = request.security(syminfo.tickerid, "1M", open)
+plot(op_l_M1, "M1 OP^L CP (Base)", color=color.new(color.orange, 70), linewidth=1)
+
+// ===== 3. DAILY LqS CHAIN - YOUR CORE =====
+// LqS Definition: High > prev 3-bar high but close < prev close
+isDailyLqS = high > ta.highest(high[1], 3) and close < close[1]
+
+var float dailyOP1 = na
+var float dailyLqS1_High = na
+var float dailyOP2 = na  // THIS IS YOUR 2ND OP^L = ENTRY 4195
+var float dailyLqS2_High = na
+
+if isDailyLqS
+    // Shift chain: new LqS becomes 2nd, old 2nd becomes 1st
+    dailyOP1 := dailyOP2
+    dailyLqS1_High := dailyLqS2_High
+    dailyOP2 := open
+    dailyLqS2_High := high
+
+// Plot Daily Chain - Your black lines
+plot(showDailyChain ? dailyOP2 : na, "Daily 2nd OP^L = ENTRY", color=color.new(color.black, 0), linewidth=2, style=plot.style_linebr)
+plot(showDailyChain ? dailyOP1 : na, "Daily 1st OP^L", color=color.new(color.gray, 0), linewidth=1, style=plot.style_linebr)
+
+// ===== 4. H4 HARMAI - YOUR SMALL ACCOUNT FILTER =====
+isBullish = close > open
+isBearish = close < open
+isInside = high < high[1] and low > low[1]
+isBearishHarami = isBullish[1] and isBearish and isInside
+
+isBearishHarami_H4 = request.security(syminfo.tickerid, "240", isBearishHarami)
+
+bgcolor(isBearishHarami_H4 and showDailyChain ? color.new(color.red, 90) : na, title="H4 Bearish Harami at Threshold")
+
+// ===== 5. H1 OP^L - Tight level 4195 =====
+h1_LqS = request.security(syminfo.tickerid, "60", isDailyLqS)
+h1_OP = request.security(syminfo.tickerid, "60", open)
+
+// ===== 6. M30 / M15 FINAL - ENTRY / SL / TP =====
+m30_High = request.security(syminfo.tickerid, "30", high)
+m15_High = request.security(syminfo.tickerid, "15", high)
+
+// Your levels from charts
+ENTRY_LEVEL = dailyOP2 // 4195
+SL_LEVEL_LARGE = dailyLqS2_High + riskBuffer // 4217
+SL_LEVEL_SMALL = 4200.51 // Your exact M30/M15 high you marked
+
+// TP = Previous Structure Low - find last swing low
+swingLow = ta.pivothigh(low, 10, 10) ? na : low // simplified, use lowest of last 20 daily
+prevStructureLow = request.security(syminfo.tickerid, "D", ta.lowest(low, 20))
+
+TP_LEVEL = prevStructureLow // 3940
+
+// Choose SL based on account mode
+SL_LEVEL = accountMode == "LARGE" ? SL_LEVEL_LARGE : SL_LEVEL_SMALL
+
+// ===== 7. CHoCH - Change of Character =====
+prevLow10 = ta.lowest(low[1], 10)
+isCHoCH_Bear = close < prevLow10
+isCHoCH_H4 = request.security(syminfo.tickerid, "240", isCHoCH_Bear)
+isCHoCH_M15 = request.security(syminfo.tickerid, "15", isCHoCH_Bear)
+
+// ===== 8. ENTRY CONDITIONS =====
+hasSetup = not na(ENTRY_LEVEL) and isLqS_12M
+atThreshold = math.abs(close - ENTRY_LEVEL) < 10
+
+// Large account: H4 CHoCH + at threshold = GO
+largeGO = hasSetup and isCHoCH_H4 and atThreshold
+
+// Small account: H4 Harami + H1 LqS + M15 CHoCH + at threshold = GO
+smallGO = hasSetup and isBearishHarami_H4 and isCHoCH_M15 and atThreshold
+
+finalGO = accountMode == "LARGE" ? largeGO : smallGO
+
+// ===== 9. PLOT BOXES - LIKE YOUR CHART =====
+if finalGO
+    // Entry Box
+    box.new(bar_index-1, ENTRY_LEVEL+2, bar_index+15, ENTRY_LEVEL-2, bgcolor=color.new(color.black, 80), border_color=color.black, text="Entry Sell " + str.tostring(ENTRY_LEVEL, format.mintick), text_color=color.black)
+    // SL Box
+    box.new(bar_index-1, SL_LEVEL+3, bar_index+15, SL_LEVEL, bgcolor=color.new(color.red, 80), border_color=color.red, text="Stop Loss " + str.tostring(SL_LEVEL, format.mintick), text_color=color.red)
+    // TP Box
+    box.new(bar_index, ENTRY_LEVEL, bar_index+100, TP_LEVEL, bgcolor=color.new(color.green, 85), border_color=color.green, text="TP Prev Structure Low " + str.tostring(TP_LEVEL, format.mintick), text_color=color.green)
+
+// ===== 10. ALERTS =====
+alertcondition(largeGO, "LARGE ACCOUNT - H4 Entry at Daily 2nd OP^L", "Gold LARGE: Sell at {{ticker}} {{close}} - Daily 2nd OP^L {{plot('Daily 2nd OP^L = ENTRY')}} SL {{plot('Stop Loss')}}")
+alertcondition(smallGO, "SMALL ACCOUNT - M15 GO", "Gold SMALL GO: M15 Entry Confirmed! Sell at {{ticker}} Entry {{plot('Daily 2nd OP^L = ENTRY')}} SL 4200.51 TP Prev Low")
+
+// Labels on chart
+if finalGO
+    rr = (ENTRY_LEVEL - TP_LEVEL) / (SL_LEVEL - ENTRY_LEVEL)
+    label.new(bar_index, high, text="RR 1:" + str.tostring(rr, "#.##") + "\n" + accountMode + " " + (accountMode == "LARGE" ? "H4" : "M15") + " GO", style=label.style_label_down, color=color.yellow, textcolor=color.black, size=size.large)
+
+// Info table
+var table info = table.new(position.top_right, 2, 7, bgcolor=color.new(color.white, 0), border_width=1)
+if barstate.islast
+    table.cell(info, 0, 0, "12M OP^L", text_color=color.black)
+    table.cell(info, 1, 0, str.tostring(op_l_12M, format.mintick), text_color=color.red)
+    table.cell(info, 0, 1, "M1 OP^L CP", text_color=color.black)
+    table.cell(info, 1, 1, str.tostring(op_l_M1, format.mintick), text_color=color.orange)
+    table.cell(info, 0, 2, "Daily 2nd OP^L (ENTRY)", text_color=color.black)
+    table.cell(info, 1, 2, str.tostring(ENTRY_LEVEL, format.mintick), text_color=color.black, bgcolor=color.yellow)
+    table.cell(info, 0, 3, "SL (" + accountMode + ")", text_color=color.black)
+    table.cell(info, 1, 3, str.tostring(SL_LEVEL, format.mintick), text_color=color.red)
+    table.cell(info, 0, 4, "TP Prev Structure Low", text_color=color.black)
+    table.cell(info, 1, 4, str.tostring(TP_LEVEL, format.mintick), text_color=color.green)
+    table.cell(info, 0, 5, "H4 Harami", text_color=color.black)
+    table.cell(info, 1, 5, isBearishHarami_H4 ? "YES" : "WAIT", text_color=isBearishHarami_H4 ? color.green : color.red)
+    table.cell(info, 0, 6, "Status", text_color=color.black)
+    table.cell(info, 1, 6, finalGO ? "GO! SELL NOW" : "POTENTIAL - AWAIT M15", text_color=finalGO ? color.white : color.black, bgcolor=finalGO ? color.green : color.yellow)
