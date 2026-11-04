@@ -17,7 +17,7 @@ flowchart TD
     F -->|Move| H{Is destination<br/>connected from here?}
     H -->|No| I[Explain that move is unavailable;<br/>leave state unchanged]
     I --> E
-    H -->|Yes, but bridge and no rope| J[Explain rope is required;<br/>leave state unchanged]
+    H -->|Yes, but bridge and no rope| J[Explain rop is required;<br/>leave state unchanged]
     J --> E
     H -->|Yes| K[Move to destination<br/>and subtract 1 energy]
     K --> L{Energy is 0?}
