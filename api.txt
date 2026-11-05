@@ -1,0 +1,10 @@
+It looks like you haven't pasted the code yet!
+
+**Please paste the code you are referring to**, and I will break it down for you line-by-line.
+
+To help me give you the best explanation, let me know if you want:
+1. **A high-level summary** of what the whole script does.
+2. **A line-by-line technical breakdown** (explaining variables, loops, functions, etc.).
+3. **An explanation of the logic/algorithm** behind the code.
+
+I'm ready when you are!
