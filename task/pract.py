@@ -26,6 +26,5 @@
 #         print("2. Location")
 #         print("3. Energy")
 #         print("4. Inventory")
-#         print("Quit")
-
+#        
         
