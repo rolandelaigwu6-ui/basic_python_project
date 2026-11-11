@@ -1,0 +1,23 @@
+{
+    "threshold": 0.5709594903801739,
+    "model_type": "LogisticRegression",
+    "vectorizer": "Character TF-IDF",
+    "analyzer": "char",
+    "ngram_range": [
+        3,
+        5
+    ],
+    "min_df": 2,
+    "class_weight": "balanced",
+    "test_metrics": {
+        "accuracy": 0.9884020618556701,
+        "spam_precision": 0.978494623655914,
+        "spam_recall": 0.9285714285714286,
+        "spam_f1": 0.9528795811518325,
+        "true_negatives": 676,
+        "false_positives": 2,
+        "false_negatives": 7,
+        "true_positives": 91,
+        "test_samples": 776
+    }
+}
